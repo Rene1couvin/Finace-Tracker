@@ -66,8 +66,7 @@ const AuthPage: React.FC = () => {
               <TrendingUp className="w-6 h-6" />
             </div>
             <h1 className="text-4xl font-bold mb-6 leading-tight">
-              Manage Your Money <br/>
-              <span className="text-primary">Master Your Life</span>
+              Manage Your Money
             </h1>
             <p className="text-muted-foreground mb-8 text-lg leading-relaxed">
               Track expenses, visualize spending patterns, and take control of your finances with our intuitive personal finance tracker.
