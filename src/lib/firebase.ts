@@ -2,14 +2,14 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// Firebase configuration - Replace with your own config from Firebase Console
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "YOUR_API_KEY",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "YOUR_AUTH_DOMAIN",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "YOUR_PROJECT_ID",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "YOUR_STORAGE_BUCKET",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "YOUR_MESSAGING_SENDER_ID",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "YOUR_APP_ID"
+  apiKey: "AIzaSyC-ig3ajpW97JbN48OFJmoyfoUw9YXOi-8",
+  authDomain: "finance-login-00001.firebaseapp.com",
+  projectId: "finance-login-00001",
+  storageBucket: "finance-login-00001.firebasestorage.app",
+  messagingSenderId: "239927424778",
+  appId: "1:239927424778:web:bc439e8de8f297812fecf3",
+  measurementId: "G-DPH2X80SL1"
 };
 
 // Initialize Firebase
