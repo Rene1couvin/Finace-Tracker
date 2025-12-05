@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import TransactionModal from '@/components/dashboard/TransactionModal';
 import TransactionItem from '@/components/dashboard/TransactionItem';
+import BalanceTrendChart from '@/components/dashboard/BalanceTrendChart';
 import { useTransactions } from '@/hooks/useTransactions';
 import { TrendingUp, TrendingDown, Wallet, Plus } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { addTransaction, getStats, getRecentTransactions, loading } = useTransactions();
+  const { transactions, addTransaction, getStats, getRecentTransactions, loading } = useTransactions();
   const stats = getStats();
   const recentTransactions = getRecentTransactions(5);
 
@@ -60,6 +61,9 @@ const Dashboard: React.FC = () => {
             <p className="text-xs text-muted-foreground mt-1">Money spent</p>
           </div>
         </div>
+
+        {/* Balance Trend Chart */}
+        <BalanceTrendChart transactions={transactions} />
 
         {/* Recent Transactions */}
         <div className="flex justify-between items-center mb-6">
