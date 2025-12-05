@@ -1,9 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
+import { Pencil, Check, X } from 'lucide-react';
 
 const Settings: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateUserProfile } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
+  const [displayName, setDisplayName] = useState(user?.displayName || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!displayName.trim()) {
+      toast.error('Name cannot be empty');
+      return;
+    }
+    
+    setSaving(true);
+    try {
+      await updateUserProfile(displayName.trim());
+      toast.success('Profile updated successfully');
+      setIsEditing(false);
+    } catch (error) {
+      toast.error('Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setDisplayName(user?.displayName || '');
+    setIsEditing(false);
+  };
 
   return (
     <DashboardLayout>
@@ -20,21 +50,62 @@ const Settings: React.FC = () => {
           <div className="p-6 space-y-6">
             <div>
               <label className="block text-sm font-semibold text-foreground mb-2">Full Name</label>
-              <input
-                type="text"
-                value={user?.displayName || ''}
-                className="w-full px-4 py-3 bg-muted border-none rounded-xl text-foreground"
-                disabled
-              />
+              <div className="flex gap-2">
+                {isEditing ? (
+                  <>
+                    <Input
+                      type="text"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      className="flex-1"
+                      placeholder="Enter your name"
+                    />
+                    <Button 
+                      size="icon" 
+                      onClick={handleSave} 
+                      disabled={saving}
+                      className="shrink-0"
+                    >
+                      <Check className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      size="icon" 
+                      variant="outline" 
+                      onClick={handleCancel}
+                      className="shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Input
+                      type="text"
+                      value={user?.displayName || ''}
+                      className="flex-1 bg-muted"
+                      disabled
+                    />
+                    <Button 
+                      size="icon" 
+                      variant="outline" 
+                      onClick={() => setIsEditing(true)}
+                      className="shrink-0"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
             <div>
               <label className="block text-sm font-semibold text-foreground mb-2">Email Address</label>
-              <input
+              <Input
                 type="email"
                 value={user?.email || ''}
-                className="w-full px-4 py-3 bg-muted border-none rounded-xl text-foreground"
+                className="bg-muted"
                 disabled
               />
+              <p className="text-xs text-muted-foreground mt-1">Email cannot be changed</p>
             </div>
           </div>
         </div>
