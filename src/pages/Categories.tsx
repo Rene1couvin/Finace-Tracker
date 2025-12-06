@@ -1,69 +1,128 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tag, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Tag, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } from 'firebase/firestore';
 
 interface Category {
   id: string;
   name: string;
   type: 'income' | 'expense';
   color: string;
+  userId: string;
 }
 
-const defaultCategories: Category[] = [
-  { id: '1', name: 'Salary', type: 'income', color: '#10B981' },
-  { id: '2', name: 'Freelance', type: 'income', color: '#3B82F6' },
-  { id: '3', name: 'Food', type: 'expense', color: '#6B7280' },
-  { id: '4', name: 'Entertainment', type: 'expense', color: '#6B7280' },
-  { id: '5', name: 'Transportation', type: 'expense', color: '#EF4444' },
-  { id: '6', name: 'Utilities', type: 'expense', color: '#6B7280' },
+const defaultCategories = [
+  { name: 'Salary', type: 'income' as const, color: '#10B981' },
+  { name: 'Freelance', type: 'income' as const, color: '#3B82F6' },
+  { name: 'Food', type: 'expense' as const, color: '#6B7280' },
+  { name: 'Entertainment', type: 'expense' as const, color: '#6B7280' },
+  { name: 'Transportation', type: 'expense' as const, color: '#EF4444' },
+  { name: 'Utilities', type: 'expense' as const, color: '#6B7280' },
 ];
 
 const Categories: React.FC = () => {
-  const [categories, setCategories] = useState<Category[]>(defaultCategories);
+  const { user } = useAuth();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState<'income' | 'expense'>('expense');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(collection(db, 'categories'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const cats: Category[] = [];
+      snapshot.forEach((doc) => {
+        cats.push({ id: doc.id, ...doc.data() } as Category);
+      });
+      
+      // If no categories exist, create defaults
+      if (cats.length === 0 && loading) {
+        initializeDefaultCategories();
+      } else {
+        setCategories(cats);
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const initializeDefaultCategories = async () => {
+    if (!user) return;
+    try {
+      for (const cat of defaultCategories) {
+        await addDoc(collection(db, 'categories'), {
+          ...cat,
+          userId: user.uid,
+        });
+      }
+    } catch (error) {
+      console.error('Error initializing categories:', error);
+    }
+    setLoading(false);
+  };
 
   const incomeCategories = categories.filter(c => c.type === 'income');
   const expenseCategories = categories.filter(c => c.type === 'expense');
 
-  const handleAddCategory = () => {
-    if (!newName.trim()) {
+  const handleAddCategory = async () => {
+    if (!newName.trim() || !user) {
       toast.error('Please enter a category name');
       return;
     }
-    const newCategory: Category = {
-      id: Date.now().toString(),
-      name: newName.trim(),
-      type: newType,
-      color: newType === 'income' ? '#10B981' : '#EF4444',
-    };
-    setCategories([...categories, newCategory]);
-    setNewName('');
-    setIsDialogOpen(false);
-    toast.success('Category added');
+    setSaving(true);
+    try {
+      await addDoc(collection(db, 'categories'), {
+        name: newName.trim(),
+        type: newType,
+        color: newType === 'income' ? '#10B981' : '#EF4444',
+        userId: user.uid,
+      });
+      setNewName('');
+      setIsDialogOpen(false);
+      toast.success('Category added');
+    } catch (error) {
+      toast.error('Failed to add category');
+    }
+    setSaving(false);
   };
 
-  const handleEditCategory = () => {
+  const handleEditCategory = async () => {
     if (!editingCategory || !newName.trim()) return;
-    setCategories(categories.map(c => 
-      c.id === editingCategory.id ? { ...c, name: newName.trim() } : c
-    ));
-    setEditingCategory(null);
-    setNewName('');
-    setIsDialogOpen(false);
-    toast.success('Category updated');
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'categories', editingCategory.id), {
+        name: newName.trim(),
+      });
+      setEditingCategory(null);
+      setNewName('');
+      setIsDialogOpen(false);
+      toast.success('Category updated');
+    } catch (error) {
+      toast.error('Failed to update category');
+    }
+    setSaving(false);
   };
 
-  const handleDeleteCategory = (id: string) => {
-    setCategories(categories.filter(c => c.id !== id));
-    toast.success('Category deleted');
+  const handleDeleteCategory = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'categories', id));
+      toast.success('Category deleted');
+    } catch (error) {
+      toast.error('Failed to delete category');
+    }
   };
 
   const openEditDialog = (category: Category) => {
@@ -81,14 +140,14 @@ const Categories: React.FC = () => {
   };
 
   const CategoryCard = ({ category }: { category: Category }) => (
-    <div className="flex items-center justify-between p-4 bg-background rounded-lg border border-border">
-      <div className="flex items-center gap-3">
+    <div className="flex items-center justify-between p-3 bg-background rounded-lg border border-border">
+      <div className="flex items-center gap-2">
         <div 
-          className="w-3 h-3 rounded-full" 
+          className="w-2.5 h-2.5 rounded-full" 
           style={{ backgroundColor: category.color }}
         />
-        <span className="font-medium text-foreground">{category.name}</span>
-        <span className={`text-xs px-2 py-1 rounded ${
+        <span className="text-sm font-medium text-foreground">{category.name}</span>
+        <span className={`text-xs px-1.5 py-0.5 rounded ${
           category.type === 'income' 
             ? 'bg-emerald-100 text-emerald-700' 
             : 'bg-red-100 text-red-700'
@@ -96,35 +155,45 @@ const Categories: React.FC = () => {
           {category.type === 'income' ? 'Income' : 'Expense'}
         </span>
       </div>
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={() => openEditDialog(category)}>
-          <Pencil className="w-4 h-4 text-muted-foreground" />
+      <div className="flex items-center gap-1">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(category)}>
+          <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
         </Button>
-        <Button variant="ghost" size="icon" onClick={() => handleDeleteCategory(category.id)}>
-          <Trash2 className="w-4 h-4 text-muted-foreground" />
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteCategory(category.id)}>
+          <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
         </Button>
       </div>
     </div>
   );
 
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-5">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Categories</h1>
-            <p className="text-muted-foreground mt-1">Manage your transaction categories</p>
+            <h1 className="text-2xl font-bold text-foreground">Categories</h1>
+            <p className="text-sm text-muted-foreground mt-1">Manage your transaction categories</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={openAddDialog} className="bg-emerald-500 hover:bg-emerald-600">
-                <Plus className="w-4 h-4 mr-2" />
+              <Button onClick={openAddDialog} size="sm" className="bg-emerald-500 hover:bg-emerald-600">
+                <Plus className="w-4 h-4 mr-1.5" />
                 Add Category
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{editingCategory ? 'Edit Category' : 'Add Category'}</DialogTitle>
+                <DialogTitle className="text-lg">{editingCategory ? 'Edit Category' : 'Add Category'}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 pt-4">
                 <div>
@@ -153,7 +222,9 @@ const Categories: React.FC = () => {
                 <Button 
                   onClick={editingCategory ? handleEditCategory : handleAddCategory}
                   className="w-full"
+                  disabled={saving}
                 >
+                  {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   {editingCategory ? 'Update' : 'Add'} Category
                 </Button>
               </div>
@@ -161,16 +232,16 @@ const Categories: React.FC = () => {
           </Dialog>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-5">
           {/* Income Categories */}
-          <div className="bg-card rounded-2xl p-6 border border-border">
-            <div className="flex items-center gap-2 mb-4">
-              <Tag className="w-5 h-5 text-emerald-500" />
-              <h2 className="text-lg font-semibold text-emerald-500">
+          <div className="bg-card rounded-xl p-5 border border-border">
+            <div className="flex items-center gap-2 mb-3">
+              <Tag className="w-4 h-4 text-emerald-500" />
+              <h2 className="text-sm font-semibold text-emerald-500">
                 Income Categories ({incomeCategories.length})
               </h2>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {incomeCategories.map(category => (
                 <CategoryCard key={category.id} category={category} />
               ))}
@@ -178,14 +249,14 @@ const Categories: React.FC = () => {
           </div>
 
           {/* Expense Categories */}
-          <div className="bg-card rounded-2xl p-6 border border-border">
-            <div className="flex items-center gap-2 mb-4">
-              <Tag className="w-5 h-5 text-red-500" />
-              <h2 className="text-lg font-semibold text-red-500">
+          <div className="bg-card rounded-xl p-5 border border-border">
+            <div className="flex items-center gap-2 mb-3">
+              <Tag className="w-4 h-4 text-red-500" />
+              <h2 className="text-sm font-semibold text-red-500">
                 Expense Categories ({expenseCategories.length})
               </h2>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {expenseCategories.map(category => (
                 <CategoryCard key={category.id} category={category} />
               ))}
