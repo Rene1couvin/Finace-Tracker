@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Transaction, TransactionStats, TransactionType, TransactionCategory } from '@/types/transaction';
 import { useAuth } from '@/contexts/AuthContext';
-
-// Using localStorage for demo - in production, use Firebase Firestore
-const STORAGE_KEY = 'finance_transactions';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, deleteDoc, doc, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
 
 export const useTransactions = () => {
   const { user } = useAuth();
@@ -11,38 +10,37 @@ export const useTransactions = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      loadTransactions();
+    if (!user) {
+      setLoading(false);
+      return;
     }
+
+    const q = query(collection(db, 'transactions'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const txns: Transaction[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        txns.push({
+          id: doc.id,
+          type: data.type,
+          amount: data.amount,
+          category: data.category,
+          title: data.title,
+          date: data.date,
+          userId: data.userId,
+          createdAt: data.createdAt?.toDate?.() || new Date(data.createdAt),
+        } as Transaction);
+      });
+      // Sort by date descending
+      txns.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setTransactions(txns);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [user]);
 
-  const loadTransactions = () => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const allTransactions: Transaction[] = JSON.parse(stored);
-        const userTransactions = allTransactions.filter(t => t.userId === user?.uid);
-        setTransactions(userTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-      }
-    } catch (error) {
-      console.error('Error loading transactions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveTransactions = (newTransactions: Transaction[]) => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      const allTransactions: Transaction[] = stored ? JSON.parse(stored) : [];
-      const otherUserTransactions = allTransactions.filter(t => t.userId !== user?.uid);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([...otherUserTransactions, ...newTransactions]));
-    } catch (error) {
-      console.error('Error saving transactions:', error);
-    }
-  };
-
-  const addTransaction = (
+  const addTransaction = async (
     type: TransactionType,
     amount: number,
     category: TransactionCategory,
@@ -51,26 +49,29 @@ export const useTransactions = () => {
   ) => {
     if (!user) return;
 
-    const newTransaction: Transaction = {
-      id: crypto.randomUUID(),
-      type,
-      amount,
-      category,
-      title,
-      date,
-      userId: user.uid,
-      createdAt: new Date()
-    };
-
-    const updated = [newTransaction, ...transactions];
-    setTransactions(updated);
-    saveTransactions(updated);
+    try {
+      await addDoc(collection(db, 'transactions'), {
+        type,
+        amount,
+        category,
+        title,
+        date,
+        userId: user.uid,
+        createdAt: Timestamp.now(),
+      });
+    } catch (error) {
+      console.error('Error adding transaction:', error);
+      throw error;
+    }
   };
 
-  const deleteTransaction = (id: string) => {
-    const updated = transactions.filter(t => t.id !== id);
-    setTransactions(updated);
-    saveTransactions(updated);
+  const deleteTransaction = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'transactions', id));
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      throw error;
+    }
   };
 
   const getStats = (): TransactionStats => {

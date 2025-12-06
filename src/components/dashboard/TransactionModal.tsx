@@ -12,7 +12,7 @@ interface TransactionModalProps {
     category: TransactionCategory,
     title: string,
     date: string
-  ) => void;
+  ) => Promise<void>;
 }
 
 const categories: TransactionCategory[] = [
@@ -44,7 +44,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, on
 
     setLoading(true);
     try {
-      onSubmit(type, parseFloat(amount), category, title, date);
+      await onSubmit(type, parseFloat(amount), category, title, date);
       toast.success('Transaction added!');
       resetForm();
       onClose();
