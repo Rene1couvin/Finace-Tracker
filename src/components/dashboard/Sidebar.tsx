@@ -1,12 +1,13 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, Send, BarChart3, Settings, LogOut, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Send, Tag, BarChart3, Settings, LogOut, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/transactions', label: 'Transactions', icon: Send },
+  { path: '/categories', label: 'Categories', icon: Tag },
   { path: '/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
