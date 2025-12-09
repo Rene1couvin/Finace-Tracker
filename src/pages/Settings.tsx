@@ -6,14 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { User, Settings as SettingsIcon, AlertTriangle, Lock, Bell } from 'lucide-react';
+import { User, Settings as SettingsIcon, AlertTriangle, Lock, Bell, Sun, Moon } from 'lucide-react';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { useTheme } from 'next-themes';
 
 type TabType = 'profile' | 'preferences' | 'account';
 
 const Settings: React.FC = () => {
   const { user, updateUserProfile } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [saving, setSaving] = useState(false);
@@ -166,6 +168,24 @@ const Settings: React.FC = () => {
               <Switch
                 checked={emailNotifications}
                 onCheckedChange={setEmailNotifications}
+              />
+            </div>
+
+            <div className="flex items-center justify-between py-4 border-t border-border">
+              <div className="flex items-center gap-3">
+                {theme === 'dark' ? (
+                  <Moon className="w-5 h-5 text-muted-foreground" />
+                ) : (
+                  <Sun className="w-5 h-5 text-muted-foreground" />
+                )}
+                <div>
+                  <h4 className="font-medium text-foreground">Dark Mode</h4>
+                  <p className="text-sm text-primary">Toggle dark/light theme</p>
+                </div>
+              </div>
+              <Switch
+                checked={theme === 'dark'}
+                onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
               />
             </div>
           </div>
