@@ -48,8 +48,16 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, on
       toast.success('Transaction added!');
       resetForm();
       onClose();
-    } catch (error) {
-      toast.error('Failed to add transaction');
+    } catch (error: any) {
+      console.error('Add transaction failed:', error);
+      const code = error?.code || '';
+      if (code === 'permission-denied') {
+        toast.error('Your database rules are blocking saves. Allow logged-in users to write transactions.');
+      } else if (code === 'unauthenticated') {
+        toast.error('Please sign in again and retry.');
+      } else {
+        toast.error(error?.message || 'Failed to add transaction');
+      }
     } finally {
       setLoading(false);
     }
