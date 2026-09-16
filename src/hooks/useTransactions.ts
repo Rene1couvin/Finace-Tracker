@@ -47,7 +47,7 @@ export const useTransactions = () => {
     title: string,
     date: string
   ) => {
-    if (!user) return;
+    if (!user) throw new Error('You must be signed in to add a transaction.');
 
     try {
       await addDoc(collection(db, 'transactions'), {
